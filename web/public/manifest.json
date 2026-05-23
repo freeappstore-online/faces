@@ -1,0 +1,10 @@
+{
+  "name": "Faces of the World",
+  "short_name": "Faces",
+  "description": "Anonymous faces from everywhere.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}

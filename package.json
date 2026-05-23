@@ -1,0 +1,13 @@
+{
+  "name": "faces",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": { "node": ">=22" },
+  "pnpm": { "onlyBuiltDependencies": ["esbuild"] },
+  "scripts": {
+    "dev": "pnpm --filter @faces/web dev",
+    "build": "pnpm --filter @faces/web build",
+    "preview": "pnpm --filter @faces/web preview",
+    "typecheck": "pnpm --filter @faces/web exec tsc -b"
+  }
+}
