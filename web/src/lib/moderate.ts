@@ -56,8 +56,13 @@ function imageToCanvas(img: HTMLImageElement): HTMLCanvasElement {
   return canvas
 }
 
+/** Start preloading models in the background. Call early (e.g. when rules screen shows). */
+export function preloadModels(): void {
+  ensureFaceApi().catch(() => {})
+  ensureNsfwModel().catch(() => {})
+}
+
 export async function moderateImage(img: HTMLImageElement): Promise<ModerationResult> {
-  // Load models in parallel
   const [faceapi, nsfw] = await Promise.all([ensureFaceApi(), ensureNsfwModel()])
 
   // Face detection + age
