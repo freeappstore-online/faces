@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { uploadImage } from '../lib/cloudinary'
+import { moderateImage } from '../lib/moderate'
 import { useAuth } from '../hooks/useAuth'
 import type { Face } from '../lib/types'
 
@@ -28,11 +29,16 @@ async function getLocationName(): Promise<string> {
   }
 }
 
+type CheckState = 'idle' | 'checking' | 'pass' | 'fail'
+
 export function AddView({ onSubmit, onDone }: AddViewProps) {
   const { user, signIn, signInWithGoogle } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [checkState, setCheckState] = useState<CheckState>('idle')
+  const [checkMessage, setCheckMessage] = useState('')
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,11 +47,32 @@ export function AddView({ onSubmit, onDone }: AddViewProps) {
     if (!f) return
     setFile(f)
     setPreview(URL.createObjectURL(f))
+    setCheckState('idle')
+    setCheckMessage('')
     setError(null)
   }, [])
 
+  const handleImageLoad = useCallback(async () => {
+    if (!imgRef.current) return
+    setCheckState('checking')
+    setCheckMessage('Checking your photo...')
+    try {
+      const result = await moderateImage(imgRef.current)
+      if (result.ok) {
+        setCheckState('pass')
+        setCheckMessage(result.age ? `Looks good! (age ~${result.age})` : 'Looks good!')
+      } else {
+        setCheckState('fail')
+        setCheckMessage(result.reason || 'Photo rejected.')
+      }
+    } catch {
+      setCheckState('pass')
+      setCheckMessage('Check unavailable — proceed with caution.')
+    }
+  }, [])
+
   const handleSubmit = useCallback(async () => {
-    if (!file) return
+    if (!file || checkState !== 'pass') return
     setUploading(true)
     setError(null)
     try {
@@ -56,13 +83,22 @@ export function AddView({ onSubmit, onDone }: AddViewProps) {
       await onSubmit({ imageId: publicId, locationName })
       setFile(null)
       setPreview(null)
+      setCheckState('idle')
       onDone()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
     }
-  }, [file, onSubmit, onDone])
+  }, [file, checkState, onSubmit, onDone])
+
+  const reset = useCallback(() => {
+    setFile(null)
+    setPreview(null)
+    setCheckState('idle')
+    setCheckMessage('')
+    setError(null)
+  }, [])
 
   if (!user) {
     return (
@@ -116,24 +152,41 @@ export function AddView({ onSubmit, onDone }: AddViewProps) {
       ) : (
         <>
           <div className="h-56 w-56 overflow-hidden rounded-full">
-            <img src={preview} alt="Preview" className="h-full w-full object-cover" />
+            <img
+              ref={imgRef}
+              src={preview}
+              alt="Preview"
+              className="h-full w-full object-cover"
+              crossOrigin="anonymous"
+              onLoad={handleImageLoad}
+            />
           </div>
 
-          {error && (
-            <p className="text-sm text-[var(--error)]">{error}</p>
-          )}
+          <div className="flex items-center gap-2 text-sm">
+            {checkState === 'checking' && (
+              <span className="text-[var(--muted)] animate-pulse">{checkMessage}</span>
+            )}
+            {checkState === 'pass' && (
+              <span className="text-[var(--success)]">{checkMessage}</span>
+            )}
+            {checkState === 'fail' && (
+              <span className="text-[var(--error)]">{checkMessage}</span>
+            )}
+          </div>
+
+          {error && <p className="text-sm text-[var(--error)]">{error}</p>}
 
           <div className="flex gap-3">
             <button
-              onClick={() => { setFile(null); setPreview(null) }}
+              onClick={reset}
               className="rounded-full border border-[var(--line-strong)] px-6 py-2.5 text-sm font-semibold text-[var(--muted)]"
             >
               Retake
             </button>
             <button
               onClick={handleSubmit}
-              disabled={uploading}
-              className="rounded-full bg-[var(--accent)] px-8 py-2.5 text-sm font-bold text-black disabled:opacity-50"
+              disabled={uploading || checkState !== 'pass'}
+              className="rounded-full bg-[var(--accent)] px-8 py-2.5 text-sm font-bold text-black disabled:opacity-30"
             >
               {uploading ? 'Adding...' : 'Add to wall'}
             </button>
