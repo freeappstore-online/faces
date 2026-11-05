@@ -27,3 +27,6 @@ interface Face {
 ```
 
 Free, MIT-licensed, no tracking.
+
+Platform conventions: https://freeappstore.online/skills.md (source form:
+https://raw.githubusercontent.com/freeappstore-online/freeappstore/main/SKILLS.md).
